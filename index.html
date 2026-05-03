@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>DALIZA — tienda</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400;1,500&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  html, body { margin: 0; padding: 0; height: 100%; background: #efe9dc;
+    font-family: 'Inter', -apple-system, system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased; }
+  * { box-sizing: border-box; }
+  ::-webkit-scrollbar { width: 0; height: 0; }
+  button { font-family: inherit; }
+  input { font-family: inherit; }
+</style>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel" src="ios-frame.jsx"></script>
+<script type="text/babel" src="tweaks-panel.jsx"></script>
+<script type="text/babel" src="data.jsx"></script>
+<script type="text/babel" src="ui.jsx"></script>
+<script type="text/babel" src="screens-1.jsx"></script>
+<script type="text/babel" src="screens-2.jsx"></script>
+<script type="text/babel" src="chat.jsx"></script>
+<script type="text/babel" src="desktop.jsx"></script>
+
+<script type="text/babel">
+const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+  "dark": false,
+  "density": "regular",
+  "cardStyle": "minimal",
+  "accent": "#7a5d3f",
+  "startScreen": "home",
+  "viewport": "desktop"
+}/*EDITMODE-END*/;
+
+function App() {
+  const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
+  const [route, setRoute] = React.useState({ name: t.startScreen || 'chat', params: {} });
+  const [history, setHistory] = React.useState([]);
+  const [menuOpen, setMenuOpen] = React.useState(false);
+  const [cart, setCart] = React.useState([
+    { id: 'p03', tone: 'ecru', size: 'M', qty: 1 },
+    { id: 'p07', tone: 'ivory', size: 'S', qty: 2 },
+  ]);
+  const [fav, setFav] = React.useState(['p05']);
+  const scrollerRef = React.useRef(null);
+
+  const go = (name, params = {}) => {
+    setHistory(h => [...h, route]);
+    setRoute({ name, params });
+    setTimeout(() => { if (scrollerRef.current) scrollerRef.current.scrollTop = 0; }, 0);
+  };
+  const back = () => {
+    if (history.length === 0) { setRoute({ name: 'home', params: {} }); return; }
+    const prev = history[history.length - 1];
+    setHistory(h => h.slice(0, -1));
+    setRoute(prev);
+  };
+
+  const addToCart = (id, tone, size) => {
+    setCart(c => {
+      const i = c.findIndex(l => l.id === id && l.tone === tone && l.size === size);
+      if (i >= 0) {
+        const n = [...c]; n[i] = { ...n[i], qty: n[i].qty + 1 }; return n;
+      }
+      return [...c, { id, tone, size, qty: 1 }];
+    });
+  };
+  const updateQty = (line, q) => {
+    if (q <= 0) { removeFromCart(line); return; }
+    setCart(c => c.map(l => l === line ? { ...l, qty: q } : l));
+  };
+  const removeFromCart = (line) => setCart(c => c.filter(l => l !== line));
+  const clearCart = () => setCart([]);
+  const toggleFav = (id) => setFav(f => f.includes(id) ? f.filter(x => x !== id) : [...f, id]);
+
+  const dark = t.dark;
+  const palette = dark ? {
+    bg: D_PALETTE.d_bg, card: D_PALETTE.d_card, text: D_PALETTE.d_text,
+    text60: D_PALETTE.d_text60, text40: 'rgba(240,234,221,0.40)',
+    line: 'rgba(240,234,221,0.13)', ink: D_PALETTE.ink,
+  } : {
+    bg: D_PALETTE.ivory, card: D_PALETTE.bone, text: D_PALETTE.ink,
+    text60: D_PALETTE.ink60, text40: D_PALETTE.ink40,
+    line: D_PALETTE.ink08, ink: D_PALETTE.ink,
+  };
+
+  const ctx = {
+    route, go, back, palette, dark,
+    cart, addToCart, updateQty, removeFromCart, clearCart,
+    fav, toggleFav,
+    density: t.density, cardStyle: t.cardStyle,
+  };
+
+  const screen = (() => {
+    switch (route.name) {
+      case 'home':     return <ScreenHome ctx={ctx} />;
+      case 'chat':     return <ScreenChat ctx={ctx} />;
+      case 'plp':      return <ScreenPLP ctx={ctx} />;
+      case 'pdp':      return <ScreenPDP ctx={ctx} />;
+      case 'bag':      return <ScreenBag ctx={ctx} />;
+      case 'checkout': return <ScreenCheckout ctx={ctx} />;
+      case 'lookbook': return <ScreenLookbook ctx={ctx} />;
+      case 'search':   return <ScreenSearch ctx={ctx} />;
+      default:         return <ScreenHome ctx={ctx} />;
+    }
+  })();
+
+  const showTopBar = !['search', 'checkout', 'chat'].includes(route.name);
+  const showBackBar = ['pdp', 'bag', 'checkout', 'lookbook', 'plp'].includes(route.name);
+  const bagCount = cart.reduce((s, l) => s + l.qty, 0);
+
+  // Page title (mono label) for back bar
+  const titleMap = {
+    plp: route.params.category && route.params.category !== 'all'
+      ? (CATEGORIES.find(c => c.id === route.params.category) || {}).name?.toUpperCase()
+      : 'COLECCIÓN',
+    pdp: 'PIEZA',
+    bag: 'TU BOLSO',
+    checkout: 'PAGO',
+    lookbook: 'LOOKBOOK',
+  };
+
+  // Viewport detection
+  const [vw, setVw] = React.useState(typeof window !== 'undefined' ? window.innerWidth : 1200);
+  React.useEffect(() => {
+    const onResize = () => setVw(window.innerWidth);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+  const mode = t.viewport === 'auto' ? (vw >= 980 ? 'desktop' : 'mobile') : t.viewport;
+
+  if (mode === 'desktop') {
+    return (
+      <div style={{ minHeight: '100vh', background: palette.bg }}>
+        <DesktopApp ctx={ctx} />
+        <TweaksPanel title="Tweaks · DALIZA">
+          <TweakSection label="Vista" />
+          <TweakRadio label="Dispositivo" value={t.viewport}
+            options={[{value:'auto',label:'Auto'},{value:'mobile',label:'Móvil'},{value:'desktop',label:'Escritorio'}]}
+            onChange={v => setTweak('viewport', v)} />
+          <TweakSection label="Tema" />
+          <TweakToggle label="Modo oscuro" value={t.dark} onChange={v => setTweak('dark', v)} />
+          <TweakSection label="Catálogo" />
+          <TweakRadio label="Estilo de tarjeta" value={t.cardStyle}
+            options={[{value:'minimal',label:'Minimal'},{value:'serif',label:'Serif'},{value:'framed',label:'Marco'}]}
+            onChange={v => setTweak('cardStyle', v)} />
+          <TweakSection label="Navegar" />
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+            {[['Home','home'],['Colección','plp'],['Pieza','pdp'],['Lookbook','lookbook'],['Bolso','bag'],['Pago','checkout'],['Buscar','search']].map(([l,n]) => (
+              <TweakButton key={n} label={l} secondary onClick={() => go(n, n==='plp'?{category:'all'}:(n==='pdp'?{id:'p03'}:{}))} />
+            ))}
+          </div>
+        </TweaksPanel>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{
+      minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
+      padding: '40px 20px',
+      background: dark
+        ? 'radial-gradient(1200px 800px at 50% 30%, #1a1612 0%, #0c0a08 70%)'
+        : 'radial-gradient(1200px 800px at 50% 30%, #f5f0e6 0%, #e6dcc8 70%)',
+    }}>
+      <div data-screen-label={`DALIZA · ${route.name}`} style={{ position: 'relative' }}>
+        <IOSDevice dark={dark} width={402} height={874}>
+          <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: palette.bg, position: 'relative' }}>
+            {/* status bar spacer */}
+            <div style={{ height: 50, flexShrink: 0 }} />
+
+            {showTopBar && (
+              <div style={{ flexShrink: 0, background: palette.bg, position: 'relative', zIndex: 6 }}>
+                <TopBar
+                  dark={dark}
+                  bagCount={bagCount}
+                  onMenu={() => setMenuOpen(true)}
+                  onSearch={() => go('search')}
+                  onAccount={() => go('home')}
+                  onBag={() => go('bag')}
+                />
+              </div>
+            )}
+
+            {showBackBar && (
+              <div style={{
+                flexShrink: 0, padding: '4px 18px 8px',
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                borderBottom: `0.5px solid ${palette.line}`,
+                background: palette.bg, position: 'relative', zIndex: 6,
+              }}>
+                <button onClick={back} style={{ ...btnReset, color: palette.text }}>
+                  {Icon.back(palette.text)}
+                </button>
+                <MonoLabel style={{ color: palette.text }}>{titleMap[route.name] || ''}</MonoLabel>
+                <div style={{ width: 20 }} />
+              </div>
+            )}
+
+            <div ref={scrollerRef} style={{
+              flex: 1, overflowY: 'auto', overflowX: 'hidden',
+              background: palette.bg, position: 'relative',
+            }}>
+              {screen}
+            </div>
+
+            {menuOpen && <MenuDrawer ctx={ctx} onClose={() => setMenuOpen(false)} />}
+          </div>
+        </IOSDevice>
+      </div>
+
+      <TweaksPanel title="Tweaks · DALIZA">
+        <TweakSection label="Vista" />
+        <TweakRadio label="Dispositivo" value={t.viewport}
+          options={[{value:'auto',label:'Auto'},{value:'mobile',label:'Móvil'},{value:'desktop',label:'Escritorio'}]}
+          onChange={v => setTweak('viewport', v)} />
+        <TweakSection label="Tema" />
+        <TweakToggle label="Modo oscuro" value={t.dark} onChange={v => setTweak('dark', v)} />
+        <TweakSection label="Catálogo" />
+        <TweakRadio
+          label="Densidad del grid"
+          value={t.density}
+          options={[
+            { value: 'compact', label: 'Compacto' },
+            { value: 'regular', label: 'Regular' },
+          ]}
+          onChange={v => setTweak('density', v)}
+        />
+        <TweakRadio
+          label="Estilo de tarjeta"
+          value={t.cardStyle}
+          options={[
+            { value: 'minimal', label: 'Minimal' },
+            { value: 'serif',   label: 'Serif' },
+            { value: 'framed',  label: 'Marco' },
+          ]}
+          onChange={v => setTweak('cardStyle', v)}
+        />
+        <TweakSection label="Navegar" />
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+          {[
+            ['Chat', 'chat'], ['Home', 'home'], ['Colección', 'plp'], ['Pieza', 'pdp'], ['Lookbook', 'lookbook'],
+            ['Bolso', 'bag'], ['Pago', 'checkout'], ['Buscar', 'search'],
+          ].map(([l, n]) => (
+            <TweakButton key={n} label={l} secondary onClick={() => go(n, n === 'plp' ? { category: 'all' } : (n === 'pdp' ? { id: 'p03' } : {}))} />
+          ))}
+        </div>
+      </TweaksPanel>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
